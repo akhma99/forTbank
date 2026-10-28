@@ -1,28 +1,59 @@
 package academy.backend.market_pulse.repository.store.impl;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import academy.backend.market_pulse.repository.store.WatchlistStore;
 
 /**
- * Заготовка для самостоятельной работы (см. «Требования к файловому хранилищу.md», семинар 7) —
- * структура есть, решения нет. Формат файла — на ваш выбор (JSON, построчный текст и т.д.); главное,
- * чтобы {@code load(save(tickers))} возвращал тот же набор тикеров в том же порядке. Проверьте себя
- * тестом {@code WatchlistStoreContractTest} (замените в нём эталонную реализацию на свою).
+ * Хранит watchlist в обычном текстовом файле: один тикер на строку. Строки пишутся в том порядке,
+ * в котором тикеры лежат в наборе, а при чтении складываются в {@link LinkedHashSet} — поэтому
+ * порядок добавления сохраняется.
  */
 public class WatchlistStoreSkeleton implements WatchlistStore {
 
     @Override
     public void save(Path path, Set<String> tickers) {
-        // TODO: сохранить тикеры watchlist-а в файл по указанному пути, сохранив порядок.
-        throw new UnsupportedOperationException("TODO: реализовать сохранение watchlist-а в файл");
+        List<String> lines = new ArrayList<>(tickers);
+        try {
+            createParentDirectories(path);
+            Files.write(path, lines, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Не удалось сохранить watchlist в файл " + path, e);
+        }
     }
 
     @Override
     public Set<String> load(Path path) {
-        // TODO: прочитать тикеры watchlist-а из файла.
-        //  Если файла ещё нет (первый запуск) — вернуть пустой набор, а не бросать исключение.
-        throw new UnsupportedOperationException("TODO: реализовать чтение watchlist-а из файла");
+        Set<String> tickers = new LinkedHashSet<>();
+        if (!Files.exists(path)) {
+            return tickers;
+        }
+        try {
+            List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+            for (String line : lines) {
+                String ticker = line.trim();
+                if (!ticker.isEmpty()) {
+                    tickers.add(ticker);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Не удалось прочитать watchlist из файла " + path, e);
+        }
+        return tickers;
+    }
+
+    private void createParentDirectories(Path path) throws IOException {
+        Path parent = path.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
     }
 }
